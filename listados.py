@@ -3,94 +3,55 @@ import pandas as pd
 import sqlite3
 import os
 
-# Archivo de la base de datos
-DB_FILE = "docentes_actualizado.db"
-
-# Conectar a SQLite
 def connect_db():
-    conn = sqlite3.connect(DB_FILE)
-    return conn
-
-# Cargar datos desde la base de datos
-def load_data():
-    conn = connect_db()
-    query = "SELECT * FROM docentes"
+    """ Conectar con la base de datos y obtener la lista de docentes. """
+    conn = sqlite3.connect("database.db")
+    query = "SELECT apellido_paterno, apellido_materno, nombres FROM docentes"
     df = pd.read_sql(query, conn)
     conn.close()
-    df.columns = df.columns.str.strip().str.upper()
-    column_mapping = {"NOMBRE (S)": "NOMBRE"}
-    df.rename(columns=column_mapping, inplace=True)
-    return df
+    df["Nombre Completo"] = df["apellido_paterno"] + " " + df["apellido_materno"] + " " + df["nombres"]
+    return df[["Nombre Completo"]]
 
-# Obtener listado de docentes
-def get_docentes(df):
-    required_columns = ["APELLIDO PATERNO", "APELLIDO MATERNO", "NOMBRE"]
-    missing_columns = [col for col in required_columns if col not in df.columns]
-    if missing_columns:
-        st.error(f"Las siguientes columnas no están en la base de datos: {missing_columns}. Verifica la estructura.")
-        return pd.DataFrame()
-    return df[required_columns].drop_duplicates()
+# Cargar datos iniciales
+docentes_df = connect_db()
 
-# Obtener documentos asignados a docentes
-def get_documentos():
-    documentos = ["Horario", "Reanudación", "Ratificación", "CURP", "SAT", "Talon de pago", "Otros"]
-    return documentos
+documentos = ["Horario", "Reanudación", "Hoja de Datos", "Ratificación", "SAT", "CURP", "INE", "Talón de Pago", "Otros"]
 
-# Guardar estado de documentos en SQLite
-def update_document_status(docente, documento, estado):
-    conn = connect_db()
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO estado_documentos (nombre, documento, estado)
-        VALUES (?, ?, ?) ON CONFLICT(nombre, documento) DO UPDATE SET estado=excluded.estado
-    """, (docente, documento, estado))
-    conn.commit()
-    conn.close()
+# Crear DataFrame para estados de documentos
+def crear_df_estado():
+    estado_df = docentes_df.copy()
+    for doc in documentos[:4]:  # Solo los 4 principales en seguimiento
+        estado_df[doc] = "Rojo"  # Estado inicial: No entregado
+    return estado_df
 
-# Interfaz Streamlit
-st.title("Registro de Entrega de Documentación")
-df = load_data()
+df_estado = crear_df_estado()
 
-tab1, tab2, tab3 = st.tabs(["Registro de Entrega", "Generar Listado", "Estadísticas"])
+st.title("📄 Registro de Entrega de Documentación")
 
+tab1, tab2 = st.tabs(["📌 Seguimiento de Documentos", "📋 Generar Listado"])
+
+# Tab 1: Seguimiento de Documentos
 with tab1:
-    st.header("Actualizar Estado de Documentación")
-    docentes = get_docentes(df)
-    if not docentes.empty:
-        docentes_seleccionados = st.multiselect("Selecciona docentes", docentes["NOMBRE"].unique())
-        documentos = get_documentos()
-        if docentes_seleccionados:
-            st.write("### Estado de Documentación")
-            estados = ["Rojo (No Entregado)", "Amarillo (En Proceso)", "Verde (Entregado)"]
-            for docente in docentes_seleccionados:
-                st.subheader(docente)
-                for doc in documentos:
-                    estado = st.selectbox(f"Estado de {doc} para {docente}", estados, key=f"{docente}_{doc}")
-                    if st.button(f"Actualizar {doc} de {docente}", key=f"btn_{docente}_{doc}"):
-                        update_document_status(docente, doc, estado)
-                        st.success(f"Estado actualizado para {docente} - {doc}: {estado}")
-    else:
-        st.warning("No se encontraron docentes en la base de datos.")
+    st.header("Seguimiento de Entrega de Documentos")
+    st.write("Haz clic en las celdas para cambiar el estado de entrega")
+    
+    estados_colores = {"Rojo": "🔴 No entregado", "Amarillo": "🟡 En proceso", "Verde": "🟢 Entregado"}
+    for doc in documentos[:4]:
+        df_estado[doc] = df_estado[doc].apply(lambda x: st.selectbox(f"{doc} para {df_estado['Nombre Completo']}", estados_colores.keys(), index=list(estados_colores.keys()).index(x)))
+    
+    if st.button("💾 Guardar Cambios"):
+        df_estado.to_excel("estado_documentos.xlsx", index=False)
+        st.success("Estados actualizados y guardados en Excel")
+        st.download_button("📥 Descargar Excel", data=open("estado_documentos.xlsx", "rb").read(), file_name="estado_documentos.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
+# Tab 2: Generador de Listados
 with tab2:
-    st.header("Generar Listado de Documentos Pendientes")
-    if not docentes.empty:
-        docente_listado = st.multiselect("Selecciona docentes", docentes["NOMBRE"].unique())
-        documento_listado = st.selectbox("Selecciona el documento", get_documentos())
-        if st.button("Generar Listado"):
-            listado_df = pd.DataFrame({"Docente": docente_listado, "Documento": documento_listado})
-            listado_df.to_excel("listado_pendientes.xlsx", index=False)
-            st.success("Listado generado. Descárgalo aquí:")
-            st.download_button("Descargar Excel", data=open("listado_pendientes.xlsx", "rb").read(), file_name="listado_pendientes.xlsx")
-    else:
-        st.warning("No se encontraron docentes en la base de datos.")
-
-with tab3:
-    st.header("Estadísticas de Documentación")
-    conn = connect_db()
-    estado_df = pd.read_sql("SELECT estado, COUNT(*) as cantidad FROM estado_documentos GROUP BY estado", conn)
-    conn.close()
-    if not estado_df.empty:
-        st.bar_chart(estado_df.set_index("estado"))
-    else:
-        st.warning("No hay registros de estado de documentos aún.")
+    st.header("Generar Listado de Documentos a Entregar")
+    seleccionados = st.multiselect("Selecciona docentes", docentes_df["Nombre Completo"].tolist())
+    documento_seleccionado = st.selectbox("Selecciona el documento a entregar", documentos)
+    
+    if st.button("📋 Generar Listado"):
+        df_listado = pd.DataFrame({"Nombre Completo": seleccionados, "Documento a Entregar": documento_seleccionado})
+        df_listado.to_excel("listado_entrega.xlsx", index=False)
+        st.success("Listado generado con éxito.")
+        st.download_button("📥 Descargar Listado", data=open("listado_entrega.xlsx", "rb").read(), file_name="listado_entrega.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
