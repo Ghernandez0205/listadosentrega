@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
+import requests
 
 # Verificar que las librerías necesarias estén instaladas
 try:
@@ -10,24 +11,33 @@ except ImportError:
     subprocess.run(["pip", "install", "-r", "requirements.txt"])
     import openpyxl
 
-# Ruta del archivo Excel
-file_path = r"C:\Users\sup11\OneDrive\Attachments\Documentos\Interfaces de phyton\Base de datos generador de listados\plantilla1.xlsx"
+# URL del archivo en GitHub
+GITHUB_FILE_URL = "https://raw.githubusercontent.com/TuUsuario/listadosentrega/main/plantilla1.xlsx"
+LOCAL_FILE_PATH = "plantilla1.xlsx"
 
-# Verificar si el archivo existe
-def check_file():
-    if os.path.exists(file_path):
-        st.success("✅ El archivo existe y está accesible.")
-    else:
-        st.error("❌ ERROR: El archivo NO existe. Verifica la ruta.")
+# Descargar el archivo si no existe localmente
+def download_file():
+    if not os.path.exists(LOCAL_FILE_PATH):
+        st.info("Descargando el archivo desde GitHub...")
+        response = requests.get(GITHUB_FILE_URL)
+        if response.status_code == 200:
+            with open(LOCAL_FILE_PATH, "wb") as file:
+                file.write(response.content)
+            st.success("Archivo descargado exitosamente.")
+        else:
+            st.error("No se pudo descargar el archivo. Verifica la URL.")
+
+# Verificar y descargar el archivo
+st.info("Verificando archivo...")
+download_file()
 
 # Cargar el archivo Excel
 def load_data():
-    check_file()
-    return pd.read_excel(file_path, engine="openpyxl")
+    return pd.read_excel(LOCAL_FILE_PATH, engine="openpyxl")
 
 # Guardar el archivo Excel actualizado
 def save_data(df):
-    df.to_excel(file_path, index=False, engine="openpyxl")
+    df.to_excel(LOCAL_FILE_PATH, index=False, engine="openpyxl")
 
 # Obtener listado de docentes
 def get_docentes(df):
