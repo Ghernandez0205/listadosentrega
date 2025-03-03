@@ -35,15 +35,16 @@ with tab1:
     st.header("Seguimiento de Entrega de Documentos")
     st.write("Selecciona el estado de cada documento")
     
-    estados_colores = {"Rojo": "🔴 No entregado", "Amarillo": "🟡 En proceso", "Verde": "🟢 Entregado"}
+    estados_colores = {"Rojo": "🟥 No entregado", "Amarillo": "🟨 En proceso", "Verde": "🟩 Entregado"}
     
     for index, row in df_estado.iterrows():
         st.subheader(row["Nombre Completo"])
         for doc in documentos[:4]:
             key = f"{row['Nombre Completo']}_{doc}"
             df_estado.at[index, doc] = st.selectbox(
-                f"{doc}", estados_colores.keys(), index=list(estados_colores.keys()).index(row[doc]), key=key
+                f"{doc}", list(estados_colores.keys()), index=list(estados_colores.keys()).index(row[doc]), key=key
             )
+            st.write(f"Estado: {estados_colores[df_estado.at[index, doc]]}")
     
     if st.button("💾 Guardar Cambios"):
         df_estado.to_excel("estado_documentos.xlsx", index=False)
