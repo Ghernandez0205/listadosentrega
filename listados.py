@@ -35,6 +35,10 @@ download_file()
 def load_data():
     df = pd.read_excel(LOCAL_FILE_PATH, engine="openpyxl")
     df.columns = df.columns.str.strip().str.upper()  # Normalizar nombres de columnas
+    column_mapping = {
+        "NOMBRE (S)": "NOMBRE"
+    }
+    df.rename(columns=column_mapping, inplace=True)
     st.write("Columnas detectadas en el archivo:", df.columns.tolist())  # Mostrar columnas en Streamlit
     return df
 
@@ -109,4 +113,3 @@ with tab2:
                     st.warning("No hay documentos pendientes para este docente.")
             else:
                 st.warning("El archivo no contiene la columna 'DOCUMENTO'. Verifica la estructura del archivo.")
-
