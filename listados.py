@@ -33,16 +33,23 @@ tab1, tab2 = st.tabs(["📌 Seguimiento de Documentos", "📋 Generar Listado"])
 # Tab 1: Seguimiento de Documentos
 with tab1:
     st.header("Seguimiento de Entrega de Documentos")
-    st.write("Haz clic en las celdas para cambiar el estado de entrega")
+    st.write("Selecciona el estado de cada documento")
     
     estados_colores = {"Rojo": "🔴 No entregado", "Amarillo": "🟡 En proceso", "Verde": "🟢 Entregado"}
-    for doc in documentos[:4]:
-        df_estado[doc] = df_estado[doc].apply(lambda x: st.selectbox(f"{doc} para {df_estado['Nombre Completo']}", estados_colores.keys(), index=list(estados_colores.keys()).index(x)))
+    
+    for index, row in df_estado.iterrows():
+        st.subheader(row["Nombre Completo"])
+        for doc in documentos[:4]:
+            key = f"{row['Nombre Completo']}_{doc}"
+            df_estado.at[index, doc] = st.selectbox(
+                f"{doc}", estados_colores.keys(), index=list(estados_colores.keys()).index(row[doc]), key=key
+            )
     
     if st.button("💾 Guardar Cambios"):
         df_estado.to_excel("estado_documentos.xlsx", index=False)
         st.success("Estados actualizados y guardados en Excel")
-        st.download_button("📥 Descargar Excel", data=open("estado_documentos.xlsx", "rb").read(), file_name="estado_documentos.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        with open("estado_documentos.xlsx", "rb") as file:
+            st.download_button("📥 Descargar Excel", data=file, file_name="estado_documentos.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 # Tab 2: Generador de Listados
 with tab2:
@@ -54,4 +61,5 @@ with tab2:
         df_listado = pd.DataFrame({"Nombre Completo": seleccionados, "Documento a Entregar": documento_seleccionado})
         df_listado.to_excel("listado_entrega.xlsx", index=False)
         st.success("Listado generado con éxito.")
-        st.download_button("📥 Descargar Listado", data=open("listado_entrega.xlsx", "rb").read(), file_name="listado_entrega.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        with open("listado_entrega.xlsx", "rb") as file:
+            st.download_button("📥 Descargar Listado", data=file, file_name="listado_entrega.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
