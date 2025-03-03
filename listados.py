@@ -1,16 +1,33 @@
 import streamlit as st
 import pandas as pd
+import os
+
+# Verificar que las librerías necesarias estén instaladas
+try:
+    import openpyxl
+except ImportError:
+    import subprocess
+    subprocess.run(["pip", "install", "-r", "requirements.txt"])
+    import openpyxl
 
 # Ruta del archivo Excel
 file_path = r"C:\Users\sup11\OneDrive\Attachments\Documentos\Interfaces de phyton\Base de datos generador de listados\plantilla1.xlsx"
 
+# Verificar si el archivo existe
+def check_file():
+    if os.path.exists(file_path):
+        st.success("✅ El archivo existe y está accesible.")
+    else:
+        st.error("❌ ERROR: El archivo NO existe. Verifica la ruta.")
+
 # Cargar el archivo Excel
 def load_data():
-    return pd.read_excel(file_path)
+    check_file()
+    return pd.read_excel(file_path, engine="openpyxl")
 
 # Guardar el archivo Excel actualizado
 def save_data(df):
-    df.to_excel(file_path, index=False)
+    df.to_excel(file_path, index=False, engine="openpyxl")
 
 # Obtener listado de docentes
 def get_docentes(df):
@@ -56,7 +73,7 @@ with tab2:
         df_listado = get_documentos(df, docente_listado)
         df_listado = df_listado[df_listado["DOCUMENTO"] == documento_listado]
         if not df_listado.empty:
-            df_listado.to_excel("listado_pendientes.xlsx", index=False)
+            df_listado.to_excel("listado_pendientes.xlsx", index=False, engine="openpyxl")
             st.success("Listado generado con éxito. Descárgalo en el siguiente enlace:")
             st.download_button(label="Descargar Excel", data=open("listado_pendientes.xlsx", "rb").read(), file_name="listado_pendientes.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         else:
